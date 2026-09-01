@@ -1,0 +1,45 @@
+// Purpose: List of doctor specialties used for categorization in the app.
+// File: lib/core/constants/doctor_specialties.dart
+
+class DoctorSpecialties {
+  // --- Supported doctor specialties list ---
+  static const List<String> all = [
+    'General Physician',
+    'Family Medicine',
+    'Internal Medicine',
+    'Cardiologist',
+    'Dermatologist',
+    'Dentist',
+    'Orthopedic Surgeon',
+    'Pediatrician',
+    'Gynecologist',
+    'Obstetrician',
+    'ENT Specialist',
+    'Neurologist',
+    'Psychiatrist',
+    'Urologist',
+    'Ophthalmologist',
+    'Gastroenterologist',
+    'Pulmonologist',
+    'Endocrinologist',
+    'Nephrologist',
+    'Oncologist',
+    'Rheumatologist',
+    'Anesthesiologist',
+    'Radiologist',
+    'Pathologist',
+    'Infectious Disease Specialist',
+    'General Surgeon',
+    'Plastic Surgeon',
+    'Neurosurgeon',
+    'Vascular Surgeon',
+    'Hematologist',
+    'Allergist / Immunologist',
+    'Emergency Medicine',
+    'Critical Care Specialist',
+    'Sports Medicine',
+    'Geriatrician',
+    'Nutritionist',
+    'Physiotherapist',
+  ];
+}

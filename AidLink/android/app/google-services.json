@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "573643929818",
+    "project_id": "aidlink-798fa",
+    "storage_bucket": "aidlink-798fa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:573643929818:android:4a8c790d938c70c4d20de3",
+        "android_client_info": {
+          "package_name": "com.android.application"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtMH0vPr7YUvgAoiGdRj_dA8l8CYiGnIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:573643929818:android:c58f425a52a4ecf5d20de3",
+        "android_client_info": {
+          "package_name": "com.example.aidlink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtMH0vPr7YUvgAoiGdRj_dA8l8CYiGnIA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

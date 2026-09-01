@@ -1,0 +1,222 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function currentUserRole() {
+      return signedIn()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isAdmin() {
+      return currentUserRole() == 'admin';
+    }
+
+    function isDoctor() {
+      return currentUserRole() == 'doctor';
+    }
+
+    function isPatient() {
+      return currentUserRole() == 'patient';
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update, delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /doctors/{doctorId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isOwner(doctorId) || isAdmin();
+    }
+
+    match /clinics/{clinicId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /doctor_availability/{doctorId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isOwner(doctorId) || isAdmin();
+    }
+
+    match /postponed_offers/{offerId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        resource.data.doctorId == request.auth.uid ||
+        resource.data.patientId == request.auth.uid
+      );
+
+      allow create: if signedIn() && (
+        isAdmin() ||
+        (
+          isDoctor() &&
+          request.resource.data.doctorId == request.auth.uid
+        )
+      );
+
+      allow update: if signedIn() && (
+        isAdmin() ||
+        resource.data.doctorId == request.auth.uid ||
+        resource.data.patientId == request.auth.uid
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn() && (
+        isAdmin() ||
+        (
+          isPatient() &&
+          request.resource.data.patientId == request.auth.uid
+        ) ||
+        (
+          isDoctor() &&
+          request.resource.data.doctorId == request.auth.uid
+        )
+      );
+
+      allow update, delete: if signedIn() && (
+        isAdmin() ||
+        resource.data.patientId == request.auth.uid ||
+        resource.data.doctorId == request.auth.uid
+      );
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        resource.data.patientId == request.auth.uid ||
+        resource.data.doctorId == request.auth.uid ||
+        isDoctor()  // Any doctor can view patient prescription histories
+      );
+
+      allow create: if signedIn() && (
+        isAdmin() ||
+        (isDoctor() && request.resource.data.doctorId == request.auth.uid)
+      );
+
+      allow update, delete: if signedIn() && (
+        isAdmin() ||
+        resource.data.doctorId == request.auth.uid
+      );
+    }
+
+    match /support_requests/{requestId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+
+      allow create: if signedIn() && (
+        isAdmin() ||
+        request.resource.data.userId == request.auth.uid
+      );
+
+      allow update, delete: if signedIn() && (
+        isAdmin() ||
+        resource.data.userId == request.auth.uid
+      );
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        resource.data.recipientId == request.auth.uid
+      );
+
+      allow create: if signedIn();
+
+      allow update: if signedIn() && (
+        isAdmin() ||
+        (
+          resource.data.recipientId == request.auth.uid &&
+          request.resource.data.recipientId == resource.data.recipientId &&
+          request.resource.data.recipientRole == resource.data.recipientRole &&
+          request.resource.data.title == resource.data.title &&
+          request.resource.data.body == resource.data.body &&
+          request.resource.data.type == resource.data.type &&
+          request.resource.data.data == resource.data.data &&
+          request.resource.data.createdAt == resource.data.createdAt
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Chat rooms and messages (1:1)
+    match /rooms/{roomId} {
+      // Allow reading a room document only to participants
+      allow read: if signedIn();
+
+      // Allow creating a room only when the client includes a valid appointmentId
+      // referencing an approved appointment and the appointment participants match.
+      allow create: if signedIn()
+        && request.resource.data.participants is list
+        && request.resource.data.participants.hasAny([request.auth.uid])
+        && request.resource.data.appointmentId is string
+        && exists(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId))
+        && get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.status in ['approved', 'accepted']
+        && (get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.patientId in request.resource.data.participants)
+        && (get(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.doctorId in request.resource.data.participants);
+
+      // Allow updating room meta only to participants
+      allow update: if signedIn() && resource.data.participants is list && resource.data.participants.hasAny([request.auth.uid]);
+
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        // Messages may be read by room participants
+        allow read: if signedIn() && exists(/databases/$(database)/documents/rooms/$(roomId)) && get(/databases/$(database)/documents/rooms/$(roomId)).data.participants.hasAny([request.auth.uid]);
+
+        // Allow creating a message if senderId matches auth and the sender is a participant
+        allow create: if signedIn() && request.resource.data.senderId == request.auth.uid && exists(/databases/$(database)/documents/rooms/$(roomId)) && get(/databases/$(database)/documents/rooms/$(roomId)).data.participants.hasAny([request.auth.uid]) && request.resource.data.text is string && request.resource.data.text.size() <= 2000 && (request.resource.data.attachmentUrl is string || request.resource.data.attachmentUrl == null);
+
+        allow update: if signedIn()
+          && exists(/databases/$(database)/documents/rooms/$(roomId))
+          && get(/databases/$(database)/documents/rooms/$(roomId)).data.participants.hasAny([request.auth.uid])
+          && resource.data.senderId != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy', 'delivered']);
+
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn();
+
+      allow update, delete: if isAdmin();
+    }
+
+    match /admin_activity_logs/{logId} {
+      allow read, update, delete: if isAdmin();
+
+      allow create: if signedIn() && (
+        isAdmin() ||
+        (
+          isDoctor() &&
+          request.resource.data.actorId == request.auth.uid &&
+          request.resource.data.actorRole == 'doctor'
+        ) ||
+        (
+          isPatient() &&
+          request.resource.data.actorId == request.auth.uid &&
+          request.resource.data.actorRole == 'patient'
+        )
+      );
+    }
+  }
+}
